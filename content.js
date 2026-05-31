@@ -1716,6 +1716,9 @@ if (!window.__memeSearchLoaded) {
         position: relative;
         display: inline-block;
       }
+      /* .el-image 容器 hover 时显示收藏按钮 */
+      .el-image:hover .meme-chat-fav-btn,
+      .meme-chat-img-wrap:hover .meme-chat-fav-btn { opacity: 1; }
       .meme-chat-fav-btn {
         position: absolute;
         top: 4px;
@@ -1737,7 +1740,6 @@ if (!window.__memeSearchLoaded) {
         line-height: 1;
         box-shadow: 0 1px 4px rgba(0,0,0,0.2);
       }
-      .meme-chat-img-wrap:hover .meme-chat-fav-btn { opacity: 1; }
       .meme-chat-fav-btn.favorited { opacity: 1; background: rgba(255,245,220,0.95); }
       .meme-chat-fav-btn:hover { transform: scale(1.15); background: #fff; }
       .meme-chat-fav-toast {
@@ -4357,46 +4359,67 @@ if (!window.__memeSearchLoaded) {
 
   /**
    * 扫描页面中聊天消息的图片，为每张图片添加收藏按钮
-   * 目标：聊天区域中的 img 标签（排除插件自身的图片和已处理的图片）
+   * 目标 DOM 结构：
+   *   <div class="el-image ..."><img class="el-image__inner" src="..."></div>
+   * 排除：
+   *   - 头像 img.userImg
+   *   - 插件自身弹窗/触发按钮内的图片
+   *   - SVG、小图标等
    */
   function scanAndAddChatFavButtons() {
-    // 选择页面中所有 img 标签，后续过滤
-    const allImages = document.querySelectorAll('img');
-    allImages.forEach(img => {
+    // 精确选择聊天图片：.el-image > img.el-image__inner
+    const chatImages = document.querySelectorAll('.el-image > img.el-image__inner');
+    chatImages.forEach(img => {
       // 跳过已添加收藏按钮的图片
       if (img.dataset.memeChatFavAdded) return;
       // 跳过插件弹窗内的图片
       if (img.closest('.meme-popup') || img.closest('.meme-overlay')) return;
-      // 跳过插件触发按钮
-      if (img.closest('.meme-trigger-btn')) return;
-      // 跳过过小的图片（图标、表情符号等，宽高都 < 30px）
-      if (img.naturalWidth > 0 && img.naturalWidth < 30 && img.naturalHeight < 30) return;
-      if (img.width > 0 && img.width < 30 && img.height < 30) return;
+      // 跳过头像
+      if (img.classList.contains('userImg') || img.closest('.userImg')) return;
       // 跳过没有有效 src 的图片
       if (!img.src || img.src === '' || img.src.startsWith('data:,')) return;
-      // 跳过 SVG 图标（常见于 UI 装饰）
+      // 跳过 SVG
       if (img.src.endsWith('.svg') || img.src.includes('data:image/svg')) return;
 
       // 标记为已处理
       img.dataset.memeChatFavAdded = 'true';
 
-      // 确保父元素有相对定位（用于收藏按钮绝对定位）
+      // 父容器 .el-image 作为收藏按钮的定位容器
+      const elImageWrap = img.parentElement;
+      if (!elImageWrap) return;
+
+      // 确保容器有相对定位
+      const computedPos = getComputedStyle(elImageWrap).position;
+      if (computedPos === 'static') {
+        elImageWrap.style.position = 'relative';
+      }
+
+      addFavBtnToImage(elImageWrap, img);
+    });
+
+    // 兜底：扫描其他聊天区域的大图（非 .el-image 结构，但带有 is-upload 属性或较大尺寸）
+    const fallbackImages = document.querySelectorAll('img[is-upload], img.is-upload');
+    fallbackImages.forEach(img => {
+      if (img.dataset.memeChatFavAdded) return;
+      if (img.closest('.meme-popup') || img.closest('.meme-overlay')) return;
+      if (img.classList.contains('userImg')) return;
+      if (!img.src || img.src === '' || img.src.startsWith('data:,')) return;
+
+      img.dataset.memeChatFavAdded = 'true';
       const parent = img.parentElement;
-      if (parent && getComputedStyle(parent).position === 'static') {
-        // 如果图片直接在 inline 上下文中，用一个 wrapper 包裹
-        if (parent.tagName === 'A' || parent.tagName === 'SPAN' || parent.tagName === 'P' || getComputedStyle(parent).display === 'inline') {
-          const wrap = document.createElement('div');
-          wrap.className = 'meme-chat-img-wrap';
-          wrap.style.display = 'inline-block';
-          wrap.style.position = 'relative';
-          img.parentNode.insertBefore(wrap, img);
-          wrap.appendChild(img);
-          addFavBtnToImage(wrap, img);
-        } else {
-          parent.style.position = 'relative';
-          addFavBtnToImage(parent, img);
-        }
-      } else if (parent) {
+      if (!parent) return;
+
+      const computedPos = getComputedStyle(parent).position;
+      if (computedPos === 'static') {
+        // 需要包裹一层容器
+        const wrap = document.createElement('div');
+        wrap.className = 'meme-chat-img-wrap';
+        wrap.style.display = 'inline-block';
+        wrap.style.position = 'relative';
+        img.parentNode.insertBefore(wrap, img);
+        wrap.appendChild(img);
+        addFavBtnToImage(wrap, img);
+      } else {
         addFavBtnToImage(parent, img);
       }
     });
