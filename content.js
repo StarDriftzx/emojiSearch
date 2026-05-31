@@ -741,8 +741,8 @@ if (!window.__memeSearchLoaded) {
         position: fixed;
         top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        width: 520px;
-        max-height: 560px;
+        width: 600px;
+        max-height: 620px;
         background: #ffffff;
         border-radius: 16px;
         box-shadow: 0 12px 40px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05);
@@ -4462,9 +4462,7 @@ if (!window.__memeSearchLoaded) {
       favBtn.innerHTML = nowFav ? '★' : '☆';
       favBtn.className = 'meme-chat-fav-btn' + (nowFav ? ' favorited' : '');
       favBtn.title = nowFav ? '取消收藏' : '收藏表情包';
-
-      // 显示简短提示
-      showChatFavToast(nowFav ? '⭐ 已收藏' : '💔 已取消收藏');
+      // toggleFavorite 已自带 showToast 提示，无需额外调用
     });
 
     container.appendChild(favBtn);
