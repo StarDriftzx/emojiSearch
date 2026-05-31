@@ -1710,6 +1710,50 @@ if (!window.__memeSearchLoaded) {
         color: #999;
         margin-top: 2px;
       }
+
+      /* 聊天消息图片收藏按钮 */
+      .meme-chat-img-wrap {
+        position: relative;
+        display: inline-block;
+      }
+      .meme-chat-fav-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,255,255,0.85);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        opacity: 0;
+        transition: all 0.2s ease;
+        z-index: 10;
+        padding: 0;
+        line-height: 1;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      }
+      .meme-chat-img-wrap:hover .meme-chat-fav-btn { opacity: 1; }
+      .meme-chat-fav-btn.favorited { opacity: 1; background: rgba(255,245,220,0.95); }
+      .meme-chat-fav-btn:hover { transform: scale(1.15); background: #fff; }
+      .meme-chat-fav-toast {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.7);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 999999;
+        pointer-events: none;
+        animation: meme-fade-in 0.2s ease;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -4309,6 +4353,151 @@ if (!window.__memeSearchLoaded) {
     }
   }
 
+  // ============ 聊天消息图片收藏功能 ============
+
+  /**
+   * 扫描页面中聊天消息的图片，为每张图片添加收藏按钮
+   * 目标：聊天区域中的 img 标签（排除插件自身的图片和已处理的图片）
+   */
+  function scanAndAddChatFavButtons() {
+    // 选择页面中所有 img 标签，后续过滤
+    const allImages = document.querySelectorAll('img');
+    allImages.forEach(img => {
+      // 跳过已添加收藏按钮的图片
+      if (img.dataset.memeChatFavAdded) return;
+      // 跳过插件弹窗内的图片
+      if (img.closest('.meme-popup') || img.closest('.meme-overlay')) return;
+      // 跳过插件触发按钮
+      if (img.closest('.meme-trigger-btn')) return;
+      // 跳过过小的图片（图标、表情符号等，宽高都 < 30px）
+      if (img.naturalWidth > 0 && img.naturalWidth < 30 && img.naturalHeight < 30) return;
+      if (img.width > 0 && img.width < 30 && img.height < 30) return;
+      // 跳过没有有效 src 的图片
+      if (!img.src || img.src === '' || img.src.startsWith('data:,')) return;
+      // 跳过 SVG 图标（常见于 UI 装饰）
+      if (img.src.endsWith('.svg') || img.src.includes('data:image/svg')) return;
+
+      // 标记为已处理
+      img.dataset.memeChatFavAdded = 'true';
+
+      // 确保父元素有相对定位（用于收藏按钮绝对定位）
+      const parent = img.parentElement;
+      if (parent && getComputedStyle(parent).position === 'static') {
+        // 如果图片直接在 inline 上下文中，用一个 wrapper 包裹
+        if (parent.tagName === 'A' || parent.tagName === 'SPAN' || parent.tagName === 'P' || getComputedStyle(parent).display === 'inline') {
+          const wrap = document.createElement('div');
+          wrap.className = 'meme-chat-img-wrap';
+          wrap.style.display = 'inline-block';
+          wrap.style.position = 'relative';
+          img.parentNode.insertBefore(wrap, img);
+          wrap.appendChild(img);
+          addFavBtnToImage(wrap, img);
+        } else {
+          parent.style.position = 'relative';
+          addFavBtnToImage(parent, img);
+        }
+      } else if (parent) {
+        addFavBtnToImage(parent, img);
+      }
+    });
+  }
+
+  /**
+   * 在图片容器上添加收藏按钮
+   */
+  function addFavBtnToImage(container, img) {
+    const imgUrl = img.src;
+    // 生成收藏项 ID：基于 URL 的简单 hash
+    const favId = 'chat_' + simpleHash(imgUrl);
+
+    const favBtn = document.createElement('button');
+    favBtn.className = 'meme-chat-fav-btn' + (isFavorite(favId) ? ' favorited' : '');
+    favBtn.innerHTML = isFavorite(favId) ? '★' : '☆';
+    favBtn.title = isFavorite(favId) ? '取消收藏' : '收藏表情包';
+    favBtn.type = 'button';
+
+    favBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      // 判断是 base64 还是 URL
+      const isBase64 = imgUrl.startsWith('data:');
+      let favUrl = imgUrl;
+      let favPreview = imgUrl;
+
+      // 如果是 base64，收藏时保留 base64；如果是 URL，直接存 URL
+      const item = {
+        id: favId,
+        url: favUrl,
+        preview: favPreview,
+        type: (imgUrl.toLowerCase().includes('.gif') || imgUrl.toLowerCase().includes('image/gif')) ? 'gif' : 'image',
+        name: '聊天图片收藏',
+        timestamp: Date.now()
+      };
+
+      const nowFav = await toggleFavorite(item);
+      favBtn.innerHTML = nowFav ? '★' : '☆';
+      favBtn.className = 'meme-chat-fav-btn' + (nowFav ? ' favorited' : '');
+      favBtn.title = nowFav ? '取消收藏' : '收藏表情包';
+
+      // 显示简短提示
+      showChatFavToast(nowFav ? '⭐ 已收藏' : '💔 已取消收藏');
+    });
+
+    container.appendChild(favBtn);
+  }
+
+  /**
+   * 简单字符串 hash，生成收藏项 ID
+   */
+  function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const chr = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  /**
+   * 聊天图片收藏的轻量提示（不依赖弹窗 toast）
+   */
+  let chatFavToastTimer = null;
+  function showChatFavToast(text) {
+    // 移除已有 toast
+    const existing = document.querySelector('.meme-chat-fav-toast');
+    if (existing) existing.remove();
+    clearTimeout(chatFavToastTimer);
+
+    const toast = document.createElement('div');
+    toast.className = 'meme-chat-fav-toast';
+    toast.textContent = text;
+    document.body.appendChild(toast);
+
+    chatFavToastTimer = setTimeout(() => {
+      toast.remove();
+    }, 1200);
+  }
+
+  /**
+   * 启动 MutationObserver 监听聊天图片变化
+   */
+  function observeChatImages() {
+    // 首次扫描
+    scanAndAddChatFavButtons();
+
+    // 监听 DOM 变化，延迟扫描新出现的图片
+    let scanTimer = null;
+    const chatImgObserver = new MutationObserver(() => {
+      clearTimeout(scanTimer);
+      scanTimer = setTimeout(scanAndAddChatFavButtons, 800);
+    });
+    chatImgObserver.observe(document.body, { childList: true, subtree: true });
+
+    console.log('[表情包搜索] 聊天图片收藏功能已启动');
+  }
+
   function convertToPng(blob) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -4499,6 +4688,8 @@ if (!window.__memeSearchLoaded) {
     setTimeout(() => {
       addTriggerButtons();
       updateFloatBtn();
+      // 启动聊天图片收藏功能
+      observeChatImages();
     }, 1000);
 
     let scrollTimer;
