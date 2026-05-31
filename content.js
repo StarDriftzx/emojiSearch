@@ -99,6 +99,13 @@ if (!window.__memeSearchLoaded) {
   // ============ 内置搜索渠道配置 ============
   const BUILTIN_CHANNELS = [
     {
+      id: 'emoji',
+      name: 'Emoji表情',
+      icon: '😀',
+      type: 'emoji',
+      builtin: true,
+    },
+    {
       id: 'baidu',
       name: '百度表情',
       icon: '🔥',
@@ -191,20 +198,13 @@ if (!window.__memeSearchLoaded) {
         };
       },
     },
-    {
-      id: 'emoji',
-      name: 'Emoji表情',
-      icon: '😀',
-      type: 'emoji',
-      builtin: true,
-    },
   ];
 
   // ============ 动态渠道列表（内置 + 自定义） ============
   let CHANNELS = [...BUILTIN_CHANNELS];
   let customApis = []; // 用户自定义 API 配置列表
 
-  let currentChannel = 2; // 默认打开 Emoji 表情频道
+  let currentChannel = 0; // 默认打开 Emoji 表情频道（已移至 BUILTIN_CHANNELS 第一位）
   let currentQuery = '';
   let currentPage = 1;
   let hasMorePages = false;
