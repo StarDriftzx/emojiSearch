@@ -3917,6 +3917,7 @@ if (!window.__memeSearchLoaded) {
       if (bgResult && bgResult.success) {
         console.log('[表情包搜索] Background 剪贴板写入成功:', bgResult.message);
         showToast(bgResult.message || '✅ 表情包已复制到剪贴板！');
+        insertImageToEditor(url);
         return;
       }
       console.warn('[表情包搜索] Background 剪贴板写入失败:', bgResult?.error || '未知错误');
@@ -3930,7 +3931,10 @@ if (!window.__memeSearchLoaded) {
       console.log('[表情包搜索] proxyFetchBlob 成功:', blob.type, blob.size, 'bytes');
       if (blob && blob.type && blob.type.startsWith('image/')) {
         const success = await writeImageToClipboard(blob, url, forceGif);
-        if (success) return;
+        if (success) {
+          insertImageToEditor(url);
+          return;
+        }
       } else {
         console.warn('[表情包搜索] proxyFetchBlob 返回非图片 blob:', blob.type);
       }
@@ -3945,7 +3949,10 @@ if (!window.__memeSearchLoaded) {
       console.log('[表情包搜索] 直接 fetch 成功:', blob.type, blob.size, 'bytes');
       if (blob.type && blob.type.startsWith('image/')) {
         const success = await writeImageToClipboard(blob, url, forceGif);
-        if (success) return;
+        if (success) {
+          insertImageToEditor(url);
+          return;
+        }
       }
       console.warn('[表情包搜索] 所有图片写入方式失败，回退为复制链接');
       await copyTextSafely(url);
@@ -4165,6 +4172,104 @@ if (!window.__memeSearchLoaded) {
       });
     }
     throw new Error('Background 不可用');
+  }
+
+  /**
+   * 获取图片的 base64 数据（通过 Background 代理，绕过 CORS）
+   * @param {string} url - 图片 URL
+   * @returns {Promise<{base64: string, mimeType: string}|null>}
+   */
+  async function fetchImageBase64(url) {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            reject(new Error('获取图片 base64 超时'));
+          }, FETCH_TIMEOUT);
+
+          chrome.runtime.sendMessage({ type: 'MEME_FETCH_BLOB', url }, (response) => {
+            clearTimeout(timer);
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+            if (response && response.success && response.data) {
+              resolve(response.data); // { base64, mimeType }
+            } else {
+              reject(new Error(response?.error || '获取图片 base64 失败'));
+            }
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('[表情包搜索] fetchImageBase64 Background 代理失败:', e.message || e);
+    }
+
+    // 回退：直接 fetch
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const mimeType = blob.type || 'image/jpeg';
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+      return { base64, mimeType };
+    } catch (e) {
+      console.error('[表情包搜索] fetchImageBase64 直接 fetch 也失败:', e.message || e);
+      return null;
+    }
+  }
+
+  /**
+   * 往页面中 contenteditable div 插入表情包图片
+   * 查找 div.inputBox div.editor[contenteditable="true"]，插入 <img> 标签
+   * @param {string} url - 图片 URL（用于获取 base64 数据）
+   */
+  async function insertImageToEditor(url) {
+    try {
+      const editor = document.querySelector('div.inputBox div.editor[contenteditable="true"]');
+      if (!editor) {
+        console.log('[表情包搜索] 未找到 contenteditable 编辑器，跳过插入');
+        return;
+      }
+
+      // 获取图片 base64 数据
+      const imageData = await fetchImageBase64(url);
+      if (!imageData || !imageData.base64) {
+        console.warn('[表情包搜索] 获取图片 base64 失败，跳过编辑器插入');
+        return;
+      }
+
+      const { base64, mimeType } = imageData;
+      const dataUrl = `data:${mimeType};base64,${base64}`;
+
+      // 创建 img 元素
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.setAttribute('is-upload', 'false');
+      img.style.maxWidth = '120px';
+      img.style.maxHeight = '120px';
+      img.style.verticalAlign = 'text-bottom';
+
+      // 插入到编辑器末尾
+      editor.appendChild(img);
+
+      // 将光标移到 img 后面，方便继续输入
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.setStartAfter(img);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      console.log('[表情包搜索] 表情包图片已插入编辑器');
+    } catch (e) {
+      console.error('[表情包搜索] insertImageToEditor 异常:', e.message || e);
+    }
   }
 
   function convertToPng(blob) {
