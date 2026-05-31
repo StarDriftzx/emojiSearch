@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>表情包搜索器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 360px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fff;
+      color: #1a1a1a;
+    }
+    .popup-container {
+      padding: 20px;
+    }
+    .popup-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .popup-logo {
+      font-size: 28px;
+    }
+    .popup-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    .popup-subtitle {
+      font-size: 13px;
+      color: #888;
+      margin-top: 2px;
+    }
+    .popup-section {
+      margin-bottom: 16px;
+    }
+    .popup-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .popup-feature-list {
+      list-style: none;
+    }
+    .popup-feature-list li {
+      padding: 8px 0;
+      font-size: 13px;
+      color: #444;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .popup-feature-list li:last-child { border-bottom: none; }
+    .popup-feature-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .popup-tip {
+      background: #f7f8fa;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #888;
+      line-height: 1.6;
+    }
+    .popup-tip strong {
+      color: #4a90d9;
+    }
+    .popup-usage {
+      margin-top: 12px;
+    }
+    .popup-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .popup-step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #4a90d9;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .popup-step-text {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.5;
+      padding-top: 2px;
+    }
+    .popup-footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #f0f0f0;
+      text-align: center;
+      font-size: 11px;
+      color: #bbb;
+    }
+    .popup-shortcut {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup-container">
+    <div class="popup-header">
+      <span class="popup-logo">😊</span>
+      <div>
+        <div class="popup-title">表情包搜索器</div>
+        <div class="popup-subtitle">随时搜索，一键复制</div>
+      </div>
+    </div>
+
+    <div class="popup-section">
+      <div class="popup-section-title">搜索渠道</div>
+      <ul class="popup-feature-list">
+        <li><span class="popup-feature-icon">🔥</span> 百度表情包（免费免注册，开箱即用）</li>
+        <li><span class="popup-feature-icon">🐶</span> 搜狗表情包（免费免注册，开箱即用）</li>
+        <li><span class="popup-feature-icon">😀</span> Emoji 表情（内置 80+ 表情，离线可用）</li>
+        <li><span class="popup-feature-icon">⚙️</span> 自定义 API（添加任意免费表情接口）</li>
+        <li><span class="popup-feature-icon">⭐</span> 收藏夹（喜欢的表情一键收藏）</li>
+      </ul>
+    </div>
+
+    <div class="popup-section">
+      <div class="popup-section-title">功能特色</div>
+      <ul class="popup-feature-list">
+        <li><span class="popup-feature-icon">🔍</span> 关键词搜索表情包</li>
+        <li><span class="popup-feature-icon">📋</span> 点击一键复制到剪贴板</li>
+        <li><span class="popup-feature-icon">🎬</span> GIF 动图复制保留动画帧（Web Custom Format）</li>
+        <li><span class="popup-feature-icon">♾️</span> 滚动到底部自动加载更多</li>
+        <li><span class="popup-feature-icon">🎨</span> 瀑布流布局，完美展示各类表情</li>
+        <li><span class="popup-feature-icon">🔧</span> 自定义 API 接口，扩展搜索源</li>
+        <li><span class="popup-feature-icon">⭐</span> 收藏喜欢的表情，随时找到</li>
+      </ul>
+    </div>
+
+    <div class="popup-section">
+      <div class="popup-section-title">使用方法</div>
+      <div class="popup-usage">
+        <div class="popup-step">
+          <div class="popup-step-num">1</div>
+          <div class="popup-step-text">在任意网页的输入框旁会出现 😊 按钮</div>
+        </div>
+        <div class="popup-step">
+          <div class="popup-step-num">2</div>
+          <div class="popup-step-text">点击按钮打开表情包搜索弹窗</div>
+        </div>
+        <div class="popup-step">
+          <div class="popup-step-num">3</div>
+          <div class="popup-step-text">输入关键词搜索，或切换渠道浏览</div>
+        </div>
+        <div class="popup-step">
+          <div class="popup-step-num">4</div>
+          <div class="popup-step-text">点击表情包即可复制到剪贴板</div>
+        </div>
+        <div class="popup-step">
+          <div class="popup-step-num">5</div>
+          <div class="popup-step-text">点 ⚙️ 按钮可添加自定义免费 API 接口</div>
+        </div>
+        <div class="popup-step">
+          <div class="popup-step-num">6</div>
+          <div class="popup-step-text">点击卡片上的 ☆ 收藏表情，在⭐收藏频道查看</div>
+        </div>
+        <div class="popup-step">
+          <div class="popup-step-num">7</div>
+          <div class="popup-step-text">GIF 右键可选择复制动图或静态图</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="popup-tip">
+      💡 <strong>所有渠道均免费免注册，开箱即用！</strong>百度和搜狗提供海量表情包搜索，Emoji 频道内置 80+ 常用表情支持离线使用。点弹窗内 ⚙️ 可添加自定义免费 API，支持任意返回 JSON 的表情接口。遇到喜欢的表情，点 ☆ 即可收藏到⭐收藏频道，随时查找。GIF 动图点击复制自动保留动画帧，右键可选择动图/静态图模式。按 <span class="popup-shortcut">ESC</span> 关闭弹窗。
+    </div>
+
+    <div class="popup-footer">
+      表情包搜索器 v1.10.0 · Made with ❤️
+    </div>
+  </div>
+</body>
+</html>

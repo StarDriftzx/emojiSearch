@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "表情包搜索器",
+  "version": "1.16.0",
+  "description": "在任意网页上快速搜索表情包，百度+搜狗免费免注册开箱即用，支持 Emoji 表情，支持自定义 API 接口，支持收藏功能，GIF 动图复制，一键复制到剪贴板",
+  "permissions": [
+    "clipboardWrite",
+    "activeTab",
+    "storage",
+    "offscreen",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
