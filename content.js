@@ -204,7 +204,7 @@ if (!window.__memeSearchLoaded) {
   let CHANNELS = [...BUILTIN_CHANNELS];
   let customApis = []; // 用户自定义 API 配置列表
 
-  let currentChannel = 0;
+  let currentChannel = 2; // 默认打开 Emoji 表情频道
   let currentQuery = '';
   let currentPage = 1;
   let hasMorePages = false;
@@ -973,7 +973,7 @@ if (!window.__memeSearchLoaded) {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 42px;
+        font-size: 28px;
         user-select: all;
       }
       .meme-item .meme-copy-hint {
@@ -3742,7 +3742,7 @@ if (!window.__memeSearchLoaded) {
   }
 
   function estimateCardHeight(item, type) {
-    if (type === 'emoji') return 100;
+    if (type === 'emoji') return 68;
     if (item.width && item.height) {
       const colWidth = 150;
       return Math.max(80, (item.height / item.width) * colWidth) + 22;
