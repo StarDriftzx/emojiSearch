@@ -3917,6 +3917,7 @@ if (!window.__memeSearchLoaded) {
       if (bgResult && bgResult.success) {
         console.log('[表情包搜索] Background 剪贴板写入成功:', bgResult.message);
         showToast(bgResult.message || '✅ 表情包已复制到剪贴板！');
+        // Background 写入成功，需要单独获取 base64 用于编辑器插入
         insertImageToEditor(url);
         return;
       }
@@ -3932,7 +3933,9 @@ if (!window.__memeSearchLoaded) {
       if (blob && blob.type && blob.type.startsWith('image/')) {
         const success = await writeImageToClipboard(blob, url, forceGif);
         if (success) {
-          insertImageToEditor(url);
+          // 直接从已有 blob 转 base64，避免重复网络请求
+          const base64Data = await blobToBase64Data(blob).catch(() => null);
+          insertImageToEditor(url, base64Data);
           return;
         }
       } else {
@@ -3950,7 +3953,9 @@ if (!window.__memeSearchLoaded) {
       if (blob.type && blob.type.startsWith('image/')) {
         const success = await writeImageToClipboard(blob, url, forceGif);
         if (success) {
-          insertImageToEditor(url);
+          // 直接从已有 blob 转 base64，避免重复网络请求
+          const base64Data = await blobToBase64Data(blob).catch(() => null);
+          insertImageToEditor(url, base64Data);
           return;
         }
       }
@@ -4175,34 +4180,62 @@ if (!window.__memeSearchLoaded) {
   }
 
   /**
+   * 将 Blob 转为 { base64, mimeType } 对象
+   * @param {Blob} blob
+   * @returns {Promise<{base64: string, mimeType: string}>}
+   */
+  function blobToBase64Data(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // reader.result = "data:image/gif;base64,R0lGODlh..."
+        const dataUrl = reader.result;
+        const commaIdx = dataUrl.indexOf(',');
+        const mimeType = blob.type || 'image/jpeg';
+        const base64 = dataUrl.substring(commaIdx + 1);
+        resolve({ base64, mimeType });
+      };
+      reader.onerror = () => reject(new Error('FileReader 读取 blob 失败'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  /**
    * 获取图片的 base64 数据（通过 Background 代理，绕过 CORS）
    * @param {string} url - 图片 URL
    * @returns {Promise<{base64: string, mimeType: string}|null>}
    */
   async function fetchImageBase64(url) {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        return new Promise((resolve, reject) => {
+    // 优先通过 Background 代理获取（绕过 CORS）
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      try {
+        const result = await new Promise((resolve, reject) => {
           const timer = setTimeout(() => {
-            reject(new Error('获取图片 base64 超时'));
+            // 超时不 reject，resolve(null) 让回退逻辑执行
+            resolve(null);
           }, FETCH_TIMEOUT);
 
           chrome.runtime.sendMessage({ type: 'MEME_FETCH_BLOB', url }, (response) => {
             clearTimeout(timer);
             if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
+              console.warn('[表情包搜索] fetchImageBase64 chrome.runtime.lastError:', chrome.runtime.lastError.message);
+              resolve(null); // 不 reject，走回退
               return;
             }
             if (response && response.success && response.data) {
               resolve(response.data); // { base64, mimeType }
             } else {
-              reject(new Error(response?.error || '获取图片 base64 失败'));
+              console.warn('[表情包搜索] fetchImageBase64 Background 返回失败:', response?.error);
+              resolve(null); // 不 reject，走回退
             }
           });
         });
+        if (result && result.base64) {
+          return result;
+        }
+      } catch (e) {
+        console.warn('[表情包搜索] fetchImageBase64 Background 代理异常:', e.message || e);
       }
-    } catch (e) {
-      console.warn('[表情包搜索] fetchImageBase64 Background 代理失败:', e.message || e);
     }
 
     // 回退：直接 fetch
@@ -4228,8 +4261,9 @@ if (!window.__memeSearchLoaded) {
    * 往页面中 contenteditable div 插入表情包图片
    * 查找 div.inputBox div.editor[contenteditable="true"]，插入 <img> 标签
    * @param {string} url - 图片 URL（用于获取 base64 数据）
+   * @param {{base64: string, mimeType: string}|null} [preloadedData] - 已有的 base64 数据，避免重复请求
    */
-  async function insertImageToEditor(url) {
+  async function insertImageToEditor(url, preloadedData) {
     try {
       const editor = document.querySelector('div.inputBox div.editor[contenteditable="true"]');
       if (!editor) {
@@ -4237,8 +4271,11 @@ if (!window.__memeSearchLoaded) {
         return;
       }
 
-      // 获取图片 base64 数据
-      const imageData = await fetchImageBase64(url);
+      // 优先使用预加载的 base64 数据，否则重新获取
+      let imageData = preloadedData;
+      if (!imageData || !imageData.base64) {
+        imageData = await fetchImageBase64(url);
+      }
       if (!imageData || !imageData.base64) {
         console.warn('[表情包搜索] 获取图片 base64 失败，跳过编辑器插入');
         return;
